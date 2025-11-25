@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Persistence;
 using System.ComponentModel.DataAnnotations;
+using Stripe.Checkout;
 
 namespace API.Controllers;
 
@@ -17,21 +18,66 @@ public class OrdersController : ControllerBase
         _context = context;
     }
 
-    // GET: api/orders/5
-    [HttpGet("{id}")]
-    public async Task<ActionResult<Order>> GetOrder(int id)
+  // GET: api/orders/5
+  [HttpGet("{id}")]
+  public async Task<ActionResult<Order>> GetOrder(int id)
+  {
+    var order = await _context.Orders
+        .Include(o => o.OrderItems)
+        .FirstOrDefaultAsync(o => o.Id == id);
+
+    if (order == null)
     {
-        var order = await _context.Orders
-            .Include(o => o.OrderItems)
-            .FirstOrDefaultAsync(o => o.Id == id);
-
-        if (order == null)
-        {
-            return NotFound();
-        }
-
-        return Ok(order);
+      return NotFound();
     }
+
+    return Ok(order);
+  }
+    // GET: api/orders/session/cs_test_xxxxx
+[HttpGet("session/{sessionId}")]
+public async Task<ActionResult<Order>> GetOrderBySessionId(string sessionId)
+{
+    // Fetch the session from Stripe to get payment status
+    var sessionService = new SessionService();
+    Session stripeSession;
+
+    try
+    {
+        stripeSession = await sessionService.GetAsync(sessionId);
+    }
+    catch (Stripe.StripeException ex)
+    {
+        return BadRequest($"Invalid session ID: {ex.Message}");
+    }
+
+    // Find order in our database
+    var order = await _context.Orders
+        .Include(o => o.OrderItems)
+        .FirstOrDefaultAsync(o => o.StripeSessionId == sessionId);
+
+    if (order == null)
+    {
+        return NotFound("Order not found");
+    }
+
+    // Update order status based on Stripe payment status
+    if (stripeSession.PaymentStatus == "paid" && order.Status != OrderStatus.Completed)
+    {
+        order.Status = OrderStatus.Completed;
+        order.CompletedDate = DateTime.Now;
+        order.StripePaymentIntentId = stripeSession.PaymentIntentId;
+        await _context.SaveChangesAsync();
+    }
+    else if (stripeSession.PaymentStatus == "unpaid" && order.Status == OrderStatus.Pending)
+    {
+        // Payment was not completed
+        order.Status = OrderStatus.Failed;
+        await _context.SaveChangesAsync();
+    }
+
+    return Ok(order);
+}
+
 
     // POST: api/orders
     [HttpPost]
