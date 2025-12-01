@@ -486,7 +486,7 @@ $RECYCLE.BIN/
 bin/
 obj/
 # Development settings with secrets
-appsettings.json
+appsettings.Development.json
 
 # SQLite database files
 *.db
