@@ -51,14 +51,12 @@ function Cart({ items, total, onUpdateQuantity, onRemove, onClear, onClose }) {
                   <span className="cart-total-label">Total:</span>
                   <span className="cart-total-amount">${total.toFixed(2)}</span>
                 </div>
-
                 <button
                   className="clear-cart-button"
                   onClick={onClear}
                 >
                   Clear Cart
                 </button>
-
                 <Link
                   to="/checkout"
                   className="checkout-button-link"
@@ -67,6 +65,7 @@ function Cart({ items, total, onUpdateQuantity, onRemove, onClear, onClose }) {
                     Proceed to Checkout
                   </button>
                 </Link>
+                ;
               </div>
             </>
           )}
